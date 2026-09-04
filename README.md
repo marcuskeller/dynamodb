@@ -2,7 +2,8 @@
 
 > API REST para gerenciamento de clientes ("customers"), construída com **Java 21 + Spring Boot** e
 > persistência em **AWS DynamoDB**. Projeto de estudo focado em boas práticas de back-end: testes
-> automatizados, mutation testing, containerização (Floci) e integração com serviços AWS.
+> automatizados, mutation testing, containerização (Floci) e integração com o **Amazon DynamoDB**
+> (via Floci / AWS SDK v2).
 
 <div align="center">
 
@@ -16,9 +17,10 @@
 ## 📑 Sumário
 
 - [📖 Sobre o Projeto](#-sobre-o-projeto)
+- [🚀 Tecnologias & Ferramentas](#-tecnologias--ferramentas)
+- [☁️ Serviços AWS utilizados](#️-serviços-aws-utilizados)
 - [🏗 Arquitetura](#-arquitetura)
 - [🗂 Estrutura de Pastas](#-estrutura-de-pastas)
-- [🚀 Tecnologias & Ferramentas](#-tecnologias--ferramentas)
 - [💻 Modelagem no DynamoDB](#-modelagem-no-dynamodb)
 - [▶️ Como Executar](#️-como-executar)
 - [⚙️ Configuração](#️-configuração)
@@ -34,10 +36,9 @@
 
 ## 📖 Sobre o Projeto
 
-API REST de clientes usando **Spring Boot 4** integrado ao **Amazon DynamoDB** (banco NoSQL).
-O acesso ao banco é feito pelo `DynamoDbTemplate` da biblioteca **Spring Cloud AWS**
+O acesso ao DynamoDB é feito pelo `DynamoDbTemplate` da biblioteca **Spring Cloud AWS**
 (`io.awspring.cloud:spring-cloud-aws-starter-dynamodb`) sobre o **AWS SDK v2 Enhanced Client** —
-não usa Spring Data repositories.
+sem Spring Data repositories.
 
 Objetivos de estudo:
 
@@ -45,9 +46,56 @@ Objetivos de estudo:
 - Construção de uma API REST em camadas (Controller → Service → Repository → Model);
 - Qualidade de código: testes unitários (JUnit 5 + Mockito), **mutation testing** (Pitest/Stryker)
   e cobertura (JaCoCo/Codecov);
-- Ambiente local 100% em contêiner com **Floci** (emulador de AWS open-source, alternativa
-  drop-in ao LocalStack — mesma porta `4566`) simulando o DynamoDB da AWS;
+- Ambiente local 100% em contêiner com **Floci** emulando o DynamoDB (ver seção Tecnologias);
 - Pipeline de CI/CD no GitHub Actions com versionamento automático (Conventional Commits).
+
+## 🚀 Tecnologias & Ferramentas
+
+<div align="left">
+  <img src="https://img.shields.io/badge/java%2021-%23ED8B00.svg?style=for-the-badge&logo=OpenJDK&logoColor=white" alt="Java 21"/>
+  <img src="https://img.shields.io/badge/Spring%20Boot%204-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Boot"/>
+  <img src="https://img.shields.io/badge/apache_maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white" alt="Maven"/>
+  <img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
+  <img src="https://img.shields.io/badge/Floci-6E4AFF?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Floci"/>
+  <img src="https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white" alt="DynamoDB"/>
+  <img src="https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white" alt="JUnit5"/>
+  <img src="https://img.shields.io/badge/Pitest%20%2F%20Stryker-E74C3C?style=for-the-badge" alt="Pitest"/>
+</div>
+
+- **Floci** — emulador de AWS local (open-source, MIT), alternativa drop-in ao LocalStack;
+  expõe todos os serviços na porta `4566`. Imagem `floci/floci:latest-aws`.
+- **Spring Cloud AWS** `4.1.0` — `spring-cloud-aws-starter-dynamodb` (`DynamoDbTemplate`)
+- **springdoc-openapi** `3.1.0` — gera OpenAPI 3.1 + Swagger UI (`springdoc-openapi-starter-webmvc-ui`)
+- **Lombok** — getters/setters/builder
+- **Jakarta Bean Validation** — `@NotNull` / `@NotBlank` no DTO
+- **JaCoCo** `0.8.15` — cobertura → Codecov
+- **Pitest** `1.25.9` + **Stryker Dashboard** — mutation testing
+- **Qodana** (JetBrains) — análise estática no CI
+- **standard-version** — CHANGELOG + tag automáticos (Conventional Commits)
+
+## ☁️ Serviços AWS utilizados
+
+<table>
+  <tr>
+    <td align="center" width="150">
+      <img src="https://icon.icepanel.io/AWS/svg/Database/DynamoDB.svg" width="56" height="56" alt="Amazon DynamoDB"/><br/>
+      <sub><strong>Amazon DynamoDB</strong></sub>
+    </td>
+    <td>
+      Banco de dados NoSQL totalmente gerenciado da AWS: dados em tabelas de itens
+      chave-valor/documento, escala automática, latência baixa e constante, sem servidor
+      pra administrar. Não tem JOIN nem SQL — o acesso é por chave (<em>partition key</em>) ou índice.
+      <br/><br/>
+      <strong>Neste projeto:</strong> tabela <code>customers</code> com partition key, GSI e TTL
+      (detalhes em <a href="#-modelagem-no-dynamodb">Modelagem no DynamoDB</a>), acessada via
+      <code>DynamoDbTemplate</code>.
+    </td>
+  </tr>
+</table>
+
+Nenhum outro serviço é usado — **sem** S3, SQS, SNS, Lambda, Secrets Manager, IAM/STS. O Floci
+emula apenas o DynamoDB; a autenticação vai desligada (`FLOCI_AUTH_VALIDATE_SIGNATURES=false`)
+com credenciais fake `test` / `test`.
 
 ## 🏗 Arquitetura
 
@@ -109,30 +157,6 @@ dynamodb/
 └── .github/workflows/pipeline.yml    # CI/CD
 ```
 
-## 🚀 Tecnologias & Ferramentas
-
-<div align="left">
-  <img src="https://img.shields.io/badge/java%2021-%23ED8B00.svg?style=for-the-badge&logo=OpenJDK&logoColor=white" alt="Java 21"/>
-  <img src="https://img.shields.io/badge/Spring%20Boot%204-6DB33F?style=for-the-badge&logo=spring&logoColor=white" alt="Spring Boot"/>
-  <img src="https://img.shields.io/badge/apache_maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white" alt="Maven"/>
-  <img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
-  <img src="https://img.shields.io/badge/Floci-6E4AFF?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Floci"/>
-  <img src="https://img.shields.io/badge/Amazon%20DynamoDB-4053D6?style=for-the-badge&logo=Amazon%20DynamoDB&logoColor=white" alt="DynamoDB"/>
-  <img src="https://img.shields.io/badge/JUnit5-25A162?style=for-the-badge&logo=junit5&logoColor=white" alt="JUnit5"/>
-  <img src="https://img.shields.io/badge/Pitest%20%2F%20Stryker-E74C3C?style=for-the-badge" alt="Pitest"/>
-</div>
-
-- **Floci** — emulador de AWS local (open-source, MIT), alternativa drop-in ao LocalStack;
-  expõe todos os serviços na porta `4566`. Imagem `floci/floci:latest-aws`.
-- **Spring Cloud AWS** `4.1.0` — `spring-cloud-aws-starter-dynamodb` (`DynamoDbTemplate`)
-- **springdoc-openapi** `3.1.0` — gera OpenAPI 3.1 + Swagger UI (`springdoc-openapi-starter-webmvc-ui`)
-- **Lombok** — getters/setters/builder
-- **Jakarta Bean Validation** — `@NotNull` / `@NotBlank` no DTO
-- **JaCoCo** `0.8.15` — cobertura → Codecov
-- **Pitest** `1.25.9` + **Stryker Dashboard** — mutation testing
-- **Qodana** (JetBrains) — análise estática no CI
-- **standard-version** — CHANGELOG + tag automáticos (Conventional Commits)
-
 ## 💻 Modelagem no DynamoDB
 
 Tabela `customers` — partition key `id` (`S`), com um Global Secondary Index `xCompanyName`
@@ -168,9 +192,9 @@ Atributos do item (nomes no banco em `snake_case`, ver `model/Customer.java`):
 | `company_name` | S | `companyName` | chave do GSI `xCompanyName` |
 | `company_document_number` | S | `companyDocumentNumber` | usado como chave de negócio (unicidade) |
 | `phone_number` | S | `phoneNumber` | |
-| `create_date` | S | `createDate` | `LocalDateTime` ISO gravado como texto |
+| `create_date` | S | `createDate` | ISO no banco (`LocalDateTime.toString()`); no JSON de resposta sai como `dd/MM/yyyy HH:mm:ss` |
 | `updated_date` | S | `updatedDate` | preenchido em update/disable |
-| `expiration_date` | N | `expirationDate` | **TTL** — epoch em segundos = `createDate` + 3 meses (`Constants.PLUS_MONTH`) |
+| `expiration_date` | N | `expirationDate` | **TTL** — epoch em segundos = `createDate` + 3 meses (`Constants.PLUS_MONTH`); no JSON sai formatado como data |
 | `active` | BOOL | `active` | `false` após `disableCustomer` |
 
 O TTL sobre `expiration_date` é habilitado automaticamente pelo script de init.
@@ -180,7 +204,7 @@ O TTL sobre `expiration_date` é habilitado automaticamente pelo script de init.
 ### Pré-requisitos
 
 - **Java 21** (o wrapper respeita a variável `JAVA_HOME`)
-- **Maven** — **não é obrigatório instalar**; o projeto traz o Maven Wrapper (`mvnw`). Veja a tabela de comandos por sistema logo abaixo.
+- **Maven** — não precisa instalar; o projeto traz o wrapper (ver *Maven Wrapper* abaixo)
 - **Docker** + **Docker Compose**
 
 ### Maven Wrapper (`mvnw`)
@@ -307,7 +331,7 @@ Formato de erro (`exceptions/ExceptionResponse`):
 A documentação interativa é gerada automaticamente pelo **springdoc-openapi** a partir das
 anotações do `CustomerController` — não há arquivo de spec para manter à mão.
 
-Com a aplicação rodando (`./mvnw spring-boot:run`):
+Com a aplicação rodando:
 
 | Recurso | URL |
 |---|---|
