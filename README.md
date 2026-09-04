@@ -107,7 +107,7 @@ sequenceDiagram
     participant CT as CustomerController
     participant S as CustomerServiceImpl
     participant M as Mapper
-    participant R as DynamoDbRepository
+    participant R as CustomerRepository
     participant T as DynamoDbTemplate<br/>(AWS SDK v2)
     participant DB as DynamoDB<br/>(Floci / AWS)
 
@@ -131,10 +131,10 @@ Camadas:
 | Controller | `controller/CustomerController` | expõe os endpoints REST, valida a entrada |
 | Service | `service/CustomerService` + `service/impl/CustomerServiceImpl` | regra de negócio (duplicidade, existência) |
 | Mapper | `mapper/Mapper` | converte `CustomerDTO` ↔ `Customer` e formata datas / calcula o TTL |
-| Repository | `repository/DynamoDbRepository` | monta `scan` / `query` no DynamoDB via `DynamoDbTemplate` |
+| Repository | `repository/CustomerRepository` | único ponto de acesso ao `DynamoDbTemplate`: `scan` / `query` / `save` / `update` |
 | Model | `model/Customer` | entidade `@DynamoDbBean` (mapeia a tabela `customers`) |
 | DTO | `dto/CustomerDTO` | contrato JSON de entrada/saída da API |
-| Exceptions | `exceptions/*` | `@ControllerAdvice` traduz exceções em respostas HTTP (404 / 422 / 500) |
+| Exceptions | `exceptions/*` | `GlobalExceptionHandler` (`@RestControllerAdvice`) traduz `ResourceNotFoundException`/`BusinessException` em respostas HTTP (404 / 422 / 500) |
 | Config | `config/DynamoDBConfiguration`, `config/Constants` | beans de conexão e constantes (fuso, +3 meses, formatador de data) |
 
 ## 🗂 Estrutura de Pastas
@@ -275,8 +275,11 @@ Definido em `src/main/resources/application.properties` (valores default para am
 | `aws.region` | `sa-east-1` | região AWS |
 | `aws.profile` | `localstack` | nome do profile de credenciais (herdado do LocalStack; hoje aponta para o Floci) |
 | `spring.profiles.active` | `localstack` | profile Spring ativo (mesma observação acima) |
-| `spring.cloud.aws.dynamodb.table-name-overrides[0].entity-class-name` | `br.com.dynamodb.model.Customer` | entidade a mapear |
-| `spring.cloud.aws.dynamodb.table-name-overrides[0].table-name` | `customers` | nome da tabela no DynamoDB |
+
+> **Nome da tabela por entidade** (`Customer` → `customers`) não vem de property — o Spring Cloud AWS
+> 3.x não tem `table-name-overrides` (isso não existe; só `table-prefix`/`table-suffix`). É definido em
+> código: bean `DynamoDbTableNameResolver` em `DynamoDBConfiguration.java`, orientado a um `Map<Class<?>, String>`
+> (adicionar entidade nova = 1 linha no mapa, sem editar lógica).
 
 ## 📡 Endpoints da API
 

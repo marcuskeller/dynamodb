@@ -6,27 +6,27 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class UnprocessableEntityExceptionTest {
+public class BusinessExceptionTest {
 
     @Test
     void devePropagarAMensagemParaARuntimeException() {
-        UnprocessableEntityException exception = new UnprocessableEntityException("dados inválidos");
+        BusinessException exception = new BusinessException("dados inválidos");
 
         assertThat(exception.getMessage()).isEqualTo("dados inválidos");
     }
 
     @Test
     void deveSerUmaRuntimeException() {
-        UnprocessableEntityException exception = new UnprocessableEntityException("qualquer mensagem");
+        BusinessException exception = new BusinessException("qualquer mensagem");
 
         assertThat(exception).isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    void deveTerAAnotacaoResponseStatusComHttpStatusUnprocessableEntity() {
-        ResponseStatus responseStatus = UnprocessableEntityException.class.getAnnotation(ResponseStatus.class);
+    void deveTerAAnotacaoResponseStatusComHttpStatusUnprocessableContent() {
+        ResponseStatus responseStatus = BusinessException.class.getAnnotation(ResponseStatus.class);
 
         assertThat(responseStatus).isNotNull();
-        assertThat(responseStatus.value()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(responseStatus.value()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
     }
 }

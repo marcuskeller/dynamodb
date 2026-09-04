@@ -5,13 +5,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.io.Serial;
 
-@ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-public class UnprocessableEntityException extends RuntimeException {
+@ResponseStatus(HttpStatus.UNPROCESSABLE_CONTENT)
+public class BusinessException extends RuntimeException {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    public UnprocessableEntityException(String ex) {
+    public BusinessException(String ex) {
         super(ex);
     }
 }

@@ -12,13 +12,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-public class CustomizedResponseEntityExceptionHandlerTest {
+public class GlobalExceptionHandlerTest {
 
     @Mock
     private WebRequest webRequest;
 
-    private final CustomizedResponseEntityExceptionHandler handler =
-            new CustomizedResponseEntityExceptionHandler();
+    private final GlobalExceptionHandler handler =
+            new GlobalExceptionHandler();
 
     // ---------------------------------------------------------------
     // handleAllExceptions
@@ -30,11 +30,13 @@ public class CustomizedResponseEntityExceptionHandlerTest {
         Exception ex = new RuntimeException("erro inesperado");
 
         ResponseEntity<ExceptionResponse> resposta = handler.handleAllExceptions(ex, webRequest);
+        ExceptionResponse body = resposta.getBody();
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(resposta.getBody().getMessage()).isEqualTo("erro inesperado");
-        assertThat(resposta.getBody().getDetails()).isEqualTo("uri=/v1/customer");
-        assertThat(resposta.getBody().getTimestamp()).isNotNull();
+        assertThat(body).isNotNull();
+        assertThat(body.getMessage()).isEqualTo("erro inesperado");
+        assertThat(body.getDetails()).isEqualTo("uri=/v1/customer");
+        assertThat(body.getTimestamp()).isNotNull();
     }
 
     // ---------------------------------------------------------------
@@ -47,28 +49,32 @@ public class CustomizedResponseEntityExceptionHandlerTest {
         ResourceNotFoundException ex = new ResourceNotFoundException("cliente não encontrado");
 
         ResponseEntity<ExceptionResponse> resposta = handler.handleNotFoundExceptions(ex, webRequest);
+        ExceptionResponse body = resposta.getBody();
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(resposta.getBody().getMessage()).isEqualTo("cliente não encontrado");
-        assertThat(resposta.getBody().getDetails()).isEqualTo("uri=/v1/customer/123");
-        assertThat(resposta.getBody().getTimestamp()).isNotNull();
+        assertThat(body).isNotNull();
+        assertThat(body.getMessage()).isEqualTo("cliente não encontrado");
+        assertThat(body.getDetails()).isEqualTo("uri=/v1/customer/123");
+        assertThat(body.getTimestamp()).isNotNull();
     }
 
     // ---------------------------------------------------------------
-    // handleUnprocessableEntityExceptions
+    // handleBusinessException
     // ---------------------------------------------------------------
 
     @Test
-    void handleUnprocessableEntityExceptions_deveRetornarStatus422ComDetalhesDaExcecao() {
+    void handleBusinessException_deveRetornarStatus422ComDetalhesDaExcecao() {
         when(webRequest.getDescription(false)).thenReturn("uri=/v1/customer");
-        UnprocessableEntityException ex = new UnprocessableEntityException("dados inválidos");
+        BusinessException ex = new BusinessException("dados inválidos");
 
         ResponseEntity<ExceptionResponse> resposta =
-                handler.handleUnprocessableEntityExceptions(ex, webRequest);
+                handler.handleBusinessException(ex, webRequest);
+        ExceptionResponse body = resposta.getBody();
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
-        assertThat(resposta.getBody().getMessage()).isEqualTo("dados inválidos");
-        assertThat(resposta.getBody().getDetails()).isEqualTo("uri=/v1/customer");
-        assertThat(resposta.getBody().getTimestamp()).isNotNull();
+        assertThat(body).isNotNull();
+        assertThat(body.getMessage()).isEqualTo("dados inválidos");
+        assertThat(body.getDetails()).isEqualTo("uri=/v1/customer");
+        assertThat(body.getTimestamp()).isNotNull();
     }
 }
