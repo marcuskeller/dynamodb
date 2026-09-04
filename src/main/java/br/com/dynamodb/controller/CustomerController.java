@@ -5,8 +5,6 @@ import br.com.dynamodb.service.CustomerService;
 
 
 import jakarta.validation.Valid;
-import jakarta.websocket.server.PathParam;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,16 +23,16 @@ public class CustomerController {
 
     @PostMapping("customer")
     public ResponseEntity<CustomerDTO> createCustomer(@Valid @RequestBody CustomerDTO customerDTO) {
-        return new ResponseEntity(customerService.saveCustomer(customerDTO), HttpStatus.OK);
+        return ResponseEntity.ok(customerService.saveCustomer(customerDTO));
     }
 
     @GetMapping("customer")
-    public ResponseEntity<List<CustomerDTO>> findCustomerByName(@PathParam("companyName") String companyName) {
+    public ResponseEntity<List<CustomerDTO>> findCustomerByName(@RequestParam("companyName") String companyName) {
         return ResponseEntity.ok(customerService.findByCompanyName(companyName));
     }
 
     @GetMapping("customer/query")
-    public ResponseEntity<CustomerDTO> findCompanyNameByQuery(@PathParam("companyName") String companyName) {
+    public ResponseEntity<CustomerDTO> findCompanyNameByQuery(@RequestParam("companyName") String companyName) {
         return ResponseEntity.ok(customerService.findCompanyNameByQuery(companyName));
     }
 
