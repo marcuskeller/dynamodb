@@ -2,18 +2,16 @@ package br.com.dynamodb.service;
 
 import br.com.dynamodb.dto.CustomerDTO;
 import br.com.dynamodb.exceptions.ResourceNotFoundException;
-import br.com.dynamodb.exceptions.UnprocessableEntityException;
+import br.com.dynamodb.exceptions.BusinessException;
 import br.com.dynamodb.mapper.Mapper;
 import br.com.dynamodb.model.Customer;
-import br.com.dynamodb.repository.DynamoDbRepository;
-import br.com.dynamodb.service.impl.CustomerServiceImpl;
-import io.awspring.cloud.dynamodb.DynamoDbTemplate;
-import org.junit.jupiter.api.BeforeEach;
+import br.com.dynamodb.repository.CustomerRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
@@ -33,16 +31,13 @@ import static org.mockito.Mockito.*;
 public class CustomerServiceTest {
 
     @InjectMocks
-    CustomerServiceImpl service;
+    CustomerService service;
 
     @Mock
-    DynamoDbRepository repository;
+    CustomerRepository repository;
 
-    @Mock
-    DynamoDbTemplate dynamoDbTemplate;
-
-
-    public Mapper mapper;
+    @Spy
+    Mapper mapper = new Mapper();
 
     private static final String CUSTOMER_IS_ALREADY = "There is already a customer with this document number";
     private static final String CUSTOMER_IS_NOT_EXISTS = "There is not customer with this document number";
@@ -53,16 +48,11 @@ public class CustomerServiceTest {
     private static final String UNKNOWN_DOCUMENT_NUMBER = "00000000000199";
 
 
-    @BeforeEach
-    public void setup() {
-        mapper = new Mapper();
-    }
-
     @Test
     public void createCustomer_WithValidData_ReturnsCustomer() {
 
         given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of());
-        given(dynamoDbTemplate.save(any(Customer.class))).willReturn(CREATED_CUSTOMER_ID);
+        given(repository.save(any(Customer.class))).willReturn(CREATED_CUSTOMER_ID);
 
         //System under test
         CustomerDTO sut = service.saveCustomer(CUSTOMER_DTO);
@@ -78,7 +68,7 @@ public class CustomerServiceTest {
 
         // Verifica o objeto realmente enviado ao DynamoDB, não só o retorno mockado.
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(dynamoDbTemplate, times(1)).save(captor.capture());
+        verify(repository, times(1)).save(captor.capture());
         Customer persisted = captor.getValue();
         assertThat(persisted.getCompanyName()).isEqualTo(CUSTOMER_DTO.getCompanyName());
         assertThat(persisted.getCompanyDocumentNumber()).isEqualTo(CUSTOMER_DTO.getCompanyDocumentNumber());
@@ -92,7 +82,7 @@ public class CustomerServiceTest {
 
         given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
 
-        Exception exception = assertThrows(UnprocessableEntityException.class, () -> service.saveCustomer(CUSTOMER_DTO));
+        Exception exception = assertThrows(BusinessException.class, () -> service.saveCustomer(CUSTOMER_DTO));
 
         String expectedMessage = CUSTOMER_IS_ALREADY;
         String actualMessage = exception.getMessage();
@@ -100,7 +90,7 @@ public class CustomerServiceTest {
         assertEquals(actualMessage, expectedMessage);
 
         // Garante que nada foi persistido quando a validação falha.
-        verify(dynamoDbTemplate, never()).save(any(Customer.class));
+        verify(repository, never()).save(any(Customer.class));
 
     }
 
@@ -234,7 +224,7 @@ public class CustomerServiceTest {
     public void disableCustomer_ByExistingCompanyName_ReturnsCustomer() {
 
         given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
-        given(dynamoDbTemplate.update(any(Customer.class))).willReturn(DISABLE_CUSTOMER_ID);
+        given(repository.update(any(Customer.class))).willReturn(DISABLE_CUSTOMER_ID);
 
         //System under test
         CustomerDTO sut = service.disableCustomer(CUSTOMER_ID.getCompanyDocumentNumber());
@@ -251,7 +241,7 @@ public class CustomerServiceTest {
         // e que os demais dados do cliente original foram preservados (optionalToDisableCustomer
         // não deve alterar companyName/phoneNumber, só active e updatedDate).
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(dynamoDbTemplate, times(1)).update(captor.capture());
+        verify(repository, times(1)).update(captor.capture());
         Customer sentToUpdate = captor.getValue();
         assertFalse(sentToUpdate.getActive());
         assertThat(sentToUpdate.getCompanyName()).isEqualTo(CUSTOMER_ID.getCompanyName());
@@ -267,7 +257,7 @@ public class CustomerServiceTest {
         assertThatThrownBy(() -> service.disableCustomer(CUSTOMER_DTO.getCompanyDocumentNumber()))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(dynamoDbTemplate, never()).update(any(Customer.class));
+        verify(repository, never()).update(any(Customer.class));
     }
 
     @Test
@@ -280,14 +270,14 @@ public class CustomerServiceTest {
 
         assertTrue(actualMessage.contains(expectedMessage));
 
-        verify(dynamoDbTemplate, never()).update(any(Customer.class));
+        verify(repository, never()).update(any(Customer.class));
     }
 
     @Test
     public void updateCustomer_ByExistingCompanyName_ReturnsUpdatedCustomer() {
 
         given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
-        given(dynamoDbTemplate.update(any(Customer.class))).willReturn(AMERICANA);
+        given(repository.update(any(Customer.class))).willReturn(AMERICANA);
 
         CustomerDTO sut = service.updateCustomer(CUSTOMER_DTO);
 
@@ -299,11 +289,10 @@ public class CustomerServiceTest {
         assertThat(sut.getExpirationDate()).isEqualTo(mapper.toStringDate(AMERICANA.getExpirationDate()));
         assertThat(sut.getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(AMERICANA.getUpdatedDate()));
 
-        // optionalToUpdateCustomer seta companyName duas vezes (do customer salvo, depois do DTO
-        // recebido) — o segundo valor prevalece. Esse captor trava esse comportamento: garante que
-        // o objeto realmente enviado ao update() reflete os dados do DTO recebido, não do customer antigo.
+        // Garante que o objeto realmente enviado ao update() reflete os dados do DTO recebido
+        // (companyName/phoneNumber), não os do customer antigo.
         ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(dynamoDbTemplate, times(1)).update(captor.capture());
+        verify(repository, times(1)).update(captor.capture());
         Customer sentToUpdate = captor.getValue();
         assertThat(sentToUpdate.getId()).isEqualTo(CUSTOMER_ID.getId());
         assertThat(sentToUpdate.getCompanyName()).isEqualTo(CUSTOMER_DTO.getCompanyName());
@@ -323,7 +312,7 @@ public class CustomerServiceTest {
 
         assertTrue(actualMessage.contains(expectedMessage));
 
-        verify(dynamoDbTemplate, never()).update(any(Customer.class));
+        verify(repository, never()).update(any(Customer.class));
     }
 
 }

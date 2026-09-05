@@ -37,7 +37,7 @@ public class CustomerController {
     }
 
     @GetMapping("customer/all")
-    public ResponseEntity<List<CustomerDTO>> Customers() {
+    public ResponseEntity<List<CustomerDTO>> findAllCustomers() {
         return ResponseEntity.ok(customerService.findAllCustomers());
     }
 

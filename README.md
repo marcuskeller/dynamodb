@@ -105,7 +105,7 @@ sequenceDiagram
 
     participant C as Cliente<br/>(Insomnia/Postman)
     participant CT as CustomerController
-    participant S as CustomerServiceImpl
+    participant S as CustomerService
     participant M as Mapper
     participant R as CustomerRepository
     participant T as DynamoDbTemplate<br/>(AWS SDK v2)
@@ -129,7 +129,7 @@ Camadas:
 | Camada | Classe | Responsabilidade |
 |---|---|---|
 | Controller | `controller/CustomerController` | expõe os endpoints REST, valida a entrada |
-| Service | `service/CustomerService` + `service/impl/CustomerServiceImpl` | regra de negócio (duplicidade, existência) |
+| Service | `service/CustomerService` | regra de negócio (duplicidade, existência) |
 | Mapper | `mapper/Mapper` | converte `CustomerDTO` ↔ `Customer` e formata datas / calcula o TTL |
 | Repository | `repository/CustomerRepository` | único ponto de acesso ao `DynamoDbTemplate`: `scan` / `query` / `save` / `update` |
 | Model | `model/Customer` | entidade `@DynamoDbBean` (mapeia a tabela `customers`) |
@@ -151,7 +151,7 @@ dynamodb/
 │   ├── DynamoDbApplication.java
 │   ├── config/        · controller/   · dto/
 │   ├── exceptions/    · mapper/       · model/
-│   ├── repository/    · service/      · service/impl/
+│   ├── repository/    · service/
 ├── src/main/resources/application.properties
 ├── src/test/java/br/com/dynamodb/    # JUnit 5 + Mockito
 └── .github/workflows/pipeline.yml    # CI/CD

@@ -30,10 +30,6 @@ public class CustomerControllerTest {
         controller = new CustomerController(customerService);
     }
 
-    // ---------------------------------------------------------------
-    // createCustomer
-    // ---------------------------------------------------------------
-
     @Test
     void createCustomer_deveRetornarStatusOkComCustomerCriadoPeloService() {
         CustomerDTO entrada = CustomerDTO.builder()
@@ -58,10 +54,6 @@ public class CustomerControllerTest {
         assertThat(resposta.getBody()).isEqualTo(retornoDoService);
         verify(customerService).saveCustomer(entrada);
     }
-
-    // ---------------------------------------------------------------
-    // findCustomerByName
-    // ---------------------------------------------------------------
 
     @Test
     void findCustomerByName_deveRetornarListaRetornadaPeloService() {
@@ -88,10 +80,6 @@ public class CustomerControllerTest {
         assertThat(resposta.getBody()).isEmpty();
     }
 
-    // ---------------------------------------------------------------
-    // findCompanyNameByQuery
-    // ---------------------------------------------------------------
-
     @Test
     void findCompanyNameByQuery_deveRetornarCustomerRetornadoPeloService() {
         String companyName = "Empresa Query";
@@ -106,10 +94,6 @@ public class CustomerControllerTest {
         verify(customerService).findCompanyNameByQuery(companyName);
     }
 
-    // ---------------------------------------------------------------
-    // Customers (listar todos)
-    // ---------------------------------------------------------------
-
     @Test
     void customers_deveRetornarTodosOsCustomersDoService() {
         List<CustomerDTO> todos = List.of(
@@ -119,16 +103,12 @@ public class CustomerControllerTest {
 
         when(customerService.findAllCustomers()).thenReturn(todos);
 
-        ResponseEntity<List<CustomerDTO>> resposta = controller.Customers();
+        ResponseEntity<List<CustomerDTO>> resposta = controller.findAllCustomers();
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getBody()).hasSize(2).isEqualTo(todos);
         verify(customerService).findAllCustomers();
     }
-
-    // ---------------------------------------------------------------
-    // updateCustomer
-    // ---------------------------------------------------------------
 
     @Test
     void updateCustomer_deveRetornarCustomerAtualizadoPeloService() {
@@ -151,10 +131,6 @@ public class CustomerControllerTest {
         assertThat(resposta.getBody()).isEqualTo(retornoDoService);
         verify(customerService).updateCustomer(entrada);
     }
-
-    // ---------------------------------------------------------------
-    // disableCustomer
-    // ---------------------------------------------------------------
 
     @Test
     void disableCustomer_deveRetornarCustomerDesativadoPeloService() {
