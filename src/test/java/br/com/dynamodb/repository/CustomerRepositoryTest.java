@@ -1,6 +1,6 @@
 package br.com.dynamodb.repository;
 
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.entity.CustomerEntity;
 import io.awspring.cloud.dynamodb.DynamoDbTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,12 +37,12 @@ public class CustomerRepositoryTest {
         repository = new CustomerRepository(dynamoDbTemplate);
     }
 
-    private static PageIterable<Customer> pageIterableOf(List<Page<Customer>> pages) {
+    private static PageIterable<CustomerEntity> pageIterableOf(List<Page<CustomerEntity>> pages) {
         return PageIterable.create(pages::iterator);
     }
 
-    private static Page<Customer> pageOf(Customer... customers) {
-        return Page.builder(Customer.class)
+    private static Page<CustomerEntity> pageOf(CustomerEntity... customers) {
+        return Page.builder(CustomerEntity.class)
                 .items(List.of(customers))
                 .build();
     }
@@ -53,29 +53,29 @@ public class CustomerRepositoryTest {
 
     @Test
     void findByCompanyDocumentNumber_deveRetornarItensDaPrimeiraPagina() {
-        Customer customer = Customer.builder()
+        CustomerEntity customer = CustomerEntity.builder()
                 .id("id-1")
                 .companyDocumentNumber("12345678000199")
                 .build();
 
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of(pageOf(customer))));
 
-        List<Customer> resultado = repository.findByCompanyDocumentNumber("12345678000199");
+        List<CustomerEntity> resultado = repository.findByCompanyDocumentNumber("12345678000199");
 
         assertThat(resultado).containsExactly(customer);
     }
 
     @Test
     void findByCompanyDocumentNumber_deveMontarFilterExpressionComODocumentoInformado() {
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of(pageOf())));
 
         ArgumentCaptor<ScanEnhancedRequest> requestCaptor = ArgumentCaptor.forClass(ScanEnhancedRequest.class);
 
         repository.findByCompanyDocumentNumber("doc-123");
 
-        verify(dynamoDbTemplate).scan(requestCaptor.capture(), eq(Customer.class));
+        verify(dynamoDbTemplate).scan(requestCaptor.capture(), eq(CustomerEntity.class));
         ScanEnhancedRequest request = requestCaptor.getValue();
 
         assertThat(request.filterExpression().expression())
@@ -87,7 +87,7 @@ public class CustomerRepositoryTest {
 
     @Test
     void findByCompanyDocumentNumber_semPaginasRetornadas_deveLancarExcecao() {
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of()));
 
         assertThatThrownBy(() -> repository.findByCompanyDocumentNumber("inexistente"))
@@ -100,37 +100,37 @@ public class CustomerRepositoryTest {
 
     @Test
     void findByCompanyName_deveRetornarItensDeTodasAsPaginas() {
-        Customer customer1 = Customer.builder().id("id-1").companyName("Empresa A").build();
-        Customer customer2 = Customer.builder().id("id-2").companyName("Empresa A").build();
+        CustomerEntity customer1 = CustomerEntity.builder().id("id-1").companyName("Empresa A").build();
+        CustomerEntity customer2 = CustomerEntity.builder().id("id-2").companyName("Empresa A").build();
 
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of(pageOf(customer1), pageOf(customer2))));
 
-        List<Customer> resultado = repository.findByCompanyName("Empresa A");
+        List<CustomerEntity> resultado = repository.findByCompanyName("Empresa A");
 
         assertThat(resultado).containsExactly(customer1, customer2);
     }
 
     @Test
     void findByCompanyName_semResultados_deveRetornarListaVazia() {
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of()));
 
-        List<Customer> resultado = repository.findByCompanyName("Inexistente");
+        List<CustomerEntity> resultado = repository.findByCompanyName("Inexistente");
 
         assertThat(resultado).isEmpty();
     }
 
     @Test
     void findByCompanyName_deveMontarFilterExpressionComONomeInformado() {
-        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(Customer.class)))
+        when(dynamoDbTemplate.scan(any(ScanEnhancedRequest.class), eq(CustomerEntity.class)))
                 .thenReturn(pageIterableOf(List.of()));
 
         ArgumentCaptor<ScanEnhancedRequest> requestCaptor = ArgumentCaptor.forClass(ScanEnhancedRequest.class);
 
         repository.findByCompanyName("Empresa X");
 
-        verify(dynamoDbTemplate).scan(requestCaptor.capture(), eq(Customer.class));
+        verify(dynamoDbTemplate).scan(requestCaptor.capture(), eq(CustomerEntity.class));
         ScanEnhancedRequest request = requestCaptor.getValue();
 
         assertThat(request.filterExpression().expression())
@@ -146,34 +146,34 @@ public class CustomerRepositoryTest {
 
     @Test
     void findCompanyNameByQuery_deveRetornarPrimeiroItemQuandoExiste() {
-        Customer customer = Customer.builder().id("id-3").companyName("Empresa Query").build();
+        CustomerEntity customer = CustomerEntity.builder().id("id-3").companyName("Empresa Query").build();
 
-        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(Customer.class), eq("xCompanyName")))
+        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(CustomerEntity.class), eq("xCompanyName")))
                 .thenReturn(pageIterableOf(List.of(pageOf(customer))));
 
-        Optional<Customer> resultado = repository.findCompanyNameByQuery("Empresa Query");
+        Optional<CustomerEntity> resultado = repository.findCompanyNameByQuery("Empresa Query");
 
         assertThat(resultado).contains(customer);
     }
 
     @Test
     void findCompanyNameByQuery_semResultados_deveRetornarOptionalVazio() {
-        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(Customer.class), eq("xCompanyName")))
+        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(CustomerEntity.class), eq("xCompanyName")))
                 .thenReturn(pageIterableOf(List.of()));
 
-        Optional<Customer> resultado = repository.findCompanyNameByQuery("Inexistente");
+        Optional<CustomerEntity> resultado = repository.findCompanyNameByQuery("Inexistente");
 
         assertThat(resultado).isEmpty();
     }
 
     @Test
     void findCompanyNameByQuery_deveConsultarOIndiceXCompanyName() {
-        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(Customer.class), eq("xCompanyName")))
+        when(dynamoDbTemplate.query(any(QueryEnhancedRequest.class), eq(CustomerEntity.class), eq("xCompanyName")))
                 .thenReturn(pageIterableOf(List.of()));
 
         repository.findCompanyNameByQuery("Empresa Y");
 
-        verify(dynamoDbTemplate).query(any(QueryEnhancedRequest.class), eq(Customer.class), eq("xCompanyName"));
+        verify(dynamoDbTemplate).query(any(QueryEnhancedRequest.class), eq(CustomerEntity.class), eq("xCompanyName"));
     }
 
     // ---------------------------------------------------------------
@@ -182,23 +182,23 @@ public class CustomerRepositoryTest {
 
     @Test
     void findAllCustomers_deveRetornarItensDeTodasAsPaginas() {
-        Customer customer1 = Customer.builder().id("id-1").build();
-        Customer customer2 = Customer.builder().id("id-2").build();
+        CustomerEntity customer1 = CustomerEntity.builder().id("id-1").build();
+        CustomerEntity customer2 = CustomerEntity.builder().id("id-2").build();
 
-        when(dynamoDbTemplate.scanAll(Customer.class))
+        when(dynamoDbTemplate.scanAll(CustomerEntity.class))
                 .thenReturn(pageIterableOf(List.of(pageOf(customer1), pageOf(customer2))));
 
-        List<Customer> resultado = repository.findAllCustomers();
+        List<CustomerEntity> resultado = repository.findAllCustomers();
 
         assertThat(resultado).containsExactly(customer1, customer2);
     }
 
     @Test
     void findAllCustomers_semClientes_deveRetornarListaVazia() {
-        when(dynamoDbTemplate.scanAll(Customer.class))
+        when(dynamoDbTemplate.scanAll(CustomerEntity.class))
                 .thenReturn(pageIterableOf(List.of()));
 
-        List<Customer> resultado = repository.findAllCustomers();
+        List<CustomerEntity> resultado = repository.findAllCustomers();
 
         assertThat(resultado).isEmpty();
     }
@@ -209,11 +209,11 @@ public class CustomerRepositoryTest {
 
     @Test
     void save_devePassarOCustomerParaOTemplateERetornarOSalvo() {
-        Customer customer = Customer.builder().id("id-1").companyName("Empresa A").build();
+        CustomerEntity customer = CustomerEntity.builder().id("id-1").companyName("Empresa A").build();
 
         when(dynamoDbTemplate.save(customer)).thenReturn(customer);
 
-        Customer resultado = repository.save(customer);
+        CustomerEntity resultado = repository.save(customer);
 
         assertThat(resultado).isEqualTo(customer);
         verify(dynamoDbTemplate).save(customer);
@@ -225,11 +225,11 @@ public class CustomerRepositoryTest {
 
     @Test
     void update_devePassarOCustomerParaOTemplateERetornarOAtualizado() {
-        Customer customer = Customer.builder().id("id-1").companyName("Empresa A Atualizada").build();
+        CustomerEntity customer = CustomerEntity.builder().id("id-1").companyName("Empresa A Atualizada").build();
 
         when(dynamoDbTemplate.update(customer)).thenReturn(customer);
 
-        Customer resultado = repository.update(customer);
+        CustomerEntity resultado = repository.update(customer);
 
         assertThat(resultado).isEqualTo(customer);
         verify(dynamoDbTemplate).update(customer);

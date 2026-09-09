@@ -3,8 +3,8 @@ package br.com.dynamodb.service;
 import br.com.dynamodb.dto.CustomerDTO;
 import br.com.dynamodb.exceptions.ResourceNotFoundException;
 import br.com.dynamodb.exceptions.BusinessException;
-import br.com.dynamodb.mapper.Mapper;
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.mapper.CustomerMapper;
+import br.com.dynamodb.entity.CustomerEntity;
 import br.com.dynamodb.repository.CustomerRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,7 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.assertj.core.data.TemporalUnitWithinOffset;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -34,10 +38,10 @@ public class CustomerServiceTest {
     CustomerService service;
 
     @Mock
-    CustomerRepository repository;
+    CustomerRepository customerRepository;
 
     @Spy
-    Mapper mapper = new Mapper();
+    CustomerMapper customerMapper = new CustomerMapper();
 
     private static final String CUSTOMER_IS_ALREADY = "There is already a customer with this document number";
     private static final String CUSTOMER_IS_NOT_EXISTS = "There is not customer with this document number";
@@ -51,8 +55,8 @@ public class CustomerServiceTest {
     @Test
     public void createCustomer_WithValidData_ReturnsCustomer() {
 
-        given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of());
-        given(repository.save(any(Customer.class))).willReturn(CREATED_CUSTOMER_ID);
+        given(customerRepository.findByCompanyDocumentNumber(anyString())).willReturn(List.of());
+        given(customerRepository.save(any(CustomerEntity.class))).willReturn(CREATED_CUSTOMER_ID);
 
         //System under test
         CustomerDTO sut = service.saveCustomer(CUSTOMER_DTO);
@@ -63,41 +67,48 @@ public class CustomerServiceTest {
         assertThat(sut.getCompanyDocumentNumber()).isEqualTo(CREATED_CUSTOMER_ID.getCompanyDocumentNumber());
         assertThat(sut.getPhoneNumber()).isEqualTo(CREATED_CUSTOMER_ID.getPhoneNumber());
         assertThat(sut.getActive()).isEqualTo(CREATED_CUSTOMER_ID.getActive());
-        assertThat(sut.getExpirationDate()).isEqualTo(mapper.toStringDate(CREATED_CUSTOMER_ID.getExpirationDate()));
+        assertThat(sut.getExpirationDate()).isEqualTo(customerMapper.toStringDate(CREATED_CUSTOMER_ID.getExpirationDate()));
         assertNull(sut.getUpdatedDate());
 
         // Verifica o objeto realmente enviado ao DynamoDB, não só o retorno mockado.
-        ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(repository, times(1)).save(captor.capture());
-        Customer persisted = captor.getValue();
+        ArgumentCaptor<CustomerEntity> captor = ArgumentCaptor.forClass(CustomerEntity.class);
+        verify(customerRepository, times(1)).save(captor.capture());
+        CustomerEntity persisted = captor.getValue();
         assertThat(persisted.getCompanyName()).isEqualTo(CUSTOMER_DTO.getCompanyName());
         assertThat(persisted.getCompanyDocumentNumber()).isEqualTo(CUSTOMER_DTO.getCompanyDocumentNumber());
         assertThat(persisted.getPhoneNumber()).isEqualTo(CUSTOMER_DTO.getPhoneNumber());
         assertThat(persisted.getActive()).isTrue();
+        assertThat(persisted.getUpdatedDate()).isNull();
+        assertThat(persisted.getId())
+                .matches("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+        assertThat(LocalDateTime.parse(persisted.getCreateDate()))
+                .isCloseTo(LocalDateTime.now(), new TemporalUnitWithinOffset(5, ChronoUnit.SECONDS));
+        // expirationDate = createDate + 3 meses (mesma data-base, fuso -3)
+        assertThat(persisted.getExpirationDate()).isEqualTo(
+                LocalDateTime.parse(persisted.getCreateDate())
+                        .plusMonths(3)
+                        .toEpochSecond(ZoneOffset.ofHours(-3)));
 
     }
 
     @Test
     public void createCustomer_WithInvalidData_ThrowsException() {
 
-        given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
+        given(customerRepository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
 
         Exception exception = assertThrows(BusinessException.class, () -> service.saveCustomer(CUSTOMER_DTO));
 
-        String expectedMessage = CUSTOMER_IS_ALREADY;
-        String actualMessage = exception.getMessage();
-
-        assertEquals(actualMessage, expectedMessage);
+        assertThat(exception.getMessage()).isEqualTo(CUSTOMER_IS_ALREADY);
 
         // Garante que nada foi persistido quando a validação falha.
-        verify(repository, never()).save(any(Customer.class));
+        verify(customerRepository, never()).save(any(CustomerEntity.class));
 
     }
 
     @Test
     public void getCustomer_ByExistingCompanyName_ReturnsCustomer() {
 
-        given(repository.findByCompanyName(anyString())).willReturn(List.of(CUSTOMER_ID));
+        given(customerRepository.findByCompanyName(anyString())).willReturn(List.of(CUSTOMER_ID));
 
         List<CustomerDTO> sut = service.findByCompanyName(EXISTING_COMPANY_NAME);
 
@@ -107,13 +118,13 @@ public class CustomerServiceTest {
         assertThat(sut.getFirst().getCompanyDocumentNumber()).isEqualTo(CUSTOMER_ID.getCompanyDocumentNumber());
         assertThat(sut.getFirst().getPhoneNumber()).isEqualTo(CUSTOMER_ID.getPhoneNumber());
         assertThat(sut.getFirst().getActive()).isEqualTo(CUSTOMER_ID.getActive());
-        assertThat(sut.getFirst().getExpirationDate()).isEqualTo(mapper.toStringDate(CUSTOMER_ID.getExpirationDate()));
+        assertThat(sut.getFirst().getExpirationDate()).isEqualTo(customerMapper.toStringDate(CUSTOMER_ID.getExpirationDate()));
         assertFalse(sut.getFirst().getUpdatedDate().isEmpty());
-        assertThat(sut.getFirst().getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(CUSTOMER_ID.getUpdatedDate()));
+        assertThat(sut.getFirst().getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(CUSTOMER_ID.getUpdatedDate()));
 
         // Verifica que o repositório foi chamado exatamente com o nome informado, uma única vez.
         ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
-        verify(repository, times(1)).findByCompanyName(nameCaptor.capture());
+        verify(customerRepository, times(1)).findByCompanyName(nameCaptor.capture());
         assertThat(nameCaptor.getValue()).isEqualTo(EXISTING_COMPANY_NAME);
 
     }
@@ -121,7 +132,7 @@ public class CustomerServiceTest {
     @Test
     public void getCustomer_ByQuery_ExistingCompanyName_ReturnsCustomer() {
 
-        given(repository.findCompanyNameByQuery(anyString())).willReturn(Optional.of(CUSTOMER_ID));
+        given(customerRepository.findCompanyNameByQuery(anyString())).willReturn(Optional.of(CUSTOMER_ID));
 
         CustomerDTO sut = service.findCompanyNameByQuery(EXISTING_COMPANY_NAME);
 
@@ -130,30 +141,25 @@ public class CustomerServiceTest {
         assertThat(sut.getCompanyDocumentNumber()).isEqualTo(CUSTOMER_ID.getCompanyDocumentNumber());
         assertThat(sut.getPhoneNumber()).isEqualTo(CUSTOMER_ID.getPhoneNumber());
         assertThat(sut.getActive()).isEqualTo(CUSTOMER_ID.getActive());
-        assertThat(sut.getExpirationDate()).isEqualTo(mapper.toStringDate(CUSTOMER_ID.getExpirationDate()));
+        assertThat(sut.getExpirationDate()).isEqualTo(customerMapper.toStringDate(CUSTOMER_ID.getExpirationDate()));
         assertFalse(sut.getUpdatedDate().isEmpty());
-        assertThat(sut.getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(CUSTOMER_ID.getUpdatedDate()));
+        assertThat(sut.getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(CUSTOMER_ID.getUpdatedDate()));
 
-        // O service atual consulta o repositório 2x para essa operação (checagem de existência +
-        // busca para montar o retorno). Não é o ideal do ponto de vista de produção, mas o teste
-        // precisa refletir o comportamento real, senão o verify quebra sem motivo relacionado a mutação.
+        // 1 única consulta ao repositório (o Optional retornado é reaproveitado).
         ArgumentCaptor<String> nameCaptor = ArgumentCaptor.forClass(String.class);
-        verify(repository, times(2)).findCompanyNameByQuery(nameCaptor.capture());
-        assertThat(nameCaptor.getAllValues()).allMatch(EXISTING_COMPANY_NAME::equals);
+        verify(customerRepository, times(1)).findCompanyNameByQuery(nameCaptor.capture());
+        assertThat(nameCaptor.getValue()).isEqualTo(EXISTING_COMPANY_NAME);
 
     }
 
     @Test
     public void getCustomer_ByQuery_UnExistingCompanyName_ReturnsEmpty() {
 
-        given(repository.findCompanyNameByQuery(anyString())).willReturn(Optional.empty());
+        given(customerRepository.findCompanyNameByQuery(anyString())).willReturn(Optional.empty());
 
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> service.findCompanyNameByQuery(UNKNOWN_COMPANY_NAME));
 
-        String expectedMessage = CUSTOMER_IS_NOT_EXISTS;
-        String actualMessage = exception.getMessage();
-
-        assertTrue(actualMessage.contains(expectedMessage));
+        assertThat(exception.getMessage()).contains(CUSTOMER_IS_NOT_EXISTS);
 
     }
 
@@ -161,7 +167,7 @@ public class CustomerServiceTest {
     @Test
     public void getCustomer_ByUnExistingCompanyName_ReturnsEmpty() {
 
-        given(repository.findByCompanyName(anyString())).willReturn(List.of());
+        given(customerRepository.findByCompanyName(anyString())).willReturn(List.of());
 
         List<CustomerDTO> sut = service.findByCompanyName(UNKNOWN_COMPANY_NAME);
 
@@ -171,7 +177,7 @@ public class CustomerServiceTest {
     @Test
     public void listCustomers_ReturnsAllCustomers() {
 
-        given(repository.findAllCustomers()).willReturn(CUSTOMERS);
+        given(customerRepository.findAllCustomers()).willReturn(CUSTOMERS);
 
         List<CustomerDTO> sut = service.findAllCustomers();
 
@@ -182,22 +188,22 @@ public class CustomerServiceTest {
         assertThat(sut.getFirst().getCompanyName()).isEqualTo(AMERICANA.getCompanyName());
         assertThat(sut.getFirst().getCompanyDocumentNumber()).isEqualTo(AMERICANA.getCompanyDocumentNumber());
         assertThat(sut.getFirst().getPhoneNumber()).isEqualTo(AMERICANA.getPhoneNumber());
-        assertThat(sut.getFirst().getExpirationDate()).isEqualTo(mapper.toStringDate(AMERICANA.getExpirationDate()));
+        assertThat(sut.getFirst().getExpirationDate()).isEqualTo(customerMapper.toStringDate(AMERICANA.getExpirationDate()));
         assertFalse(sut.getFirst().getUpdatedDate().isEmpty());
-        assertThat(sut.getFirst().getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(AMERICANA.getUpdatedDate()));
+        assertThat(sut.getFirst().getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(AMERICANA.getUpdatedDate()));
 
         assertNotNull(sut.get(1));
         assertThat(sut.get(1).getCompanyName()).isEqualTo(CHINESA.getCompanyName());
         assertThat(sut.get(1).getCompanyDocumentNumber()).isEqualTo(CHINESA.getCompanyDocumentNumber());
         assertThat(sut.get(1).getPhoneNumber()).isEqualTo(CHINESA.getPhoneNumber());
-        assertThat(sut.get(1).getExpirationDate()).isEqualTo(mapper.toStringDate(CHINESA.getExpirationDate()));
-        assertThat(sut.get(1).getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(CHINESA.getUpdatedDate()));
+        assertThat(sut.get(1).getExpirationDate()).isEqualTo(customerMapper.toStringDate(CHINESA.getExpirationDate()));
+        assertThat(sut.get(1).getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(CHINESA.getUpdatedDate()));
 
         assertNotNull(sut.get(2));
         assertThat(sut.get(2).getCompanyName()).isEqualTo(CANADENSE.getCompanyName());
         assertThat(sut.get(2).getCompanyDocumentNumber()).isEqualTo(CANADENSE.getCompanyDocumentNumber());
         assertThat(sut.get(2).getPhoneNumber()).isEqualTo(CANADENSE.getPhoneNumber());
-        assertThat(sut.get(2).getExpirationDate()).isEqualTo(mapper.toStringDate(CANADENSE.getExpirationDate()));
+        assertThat(sut.get(2).getExpirationDate()).isEqualTo(customerMapper.toStringDate(CANADENSE.getExpirationDate()));
         assertNull(sut.get(2).getUpdatedDate());
 
 
@@ -205,15 +211,15 @@ public class CustomerServiceTest {
         assertThat(sut.getLast().getCompanyName()).isEqualTo(BRASILEIRA.getCompanyName());
         assertThat(sut.getLast().getCompanyDocumentNumber()).isEqualTo(BRASILEIRA.getCompanyDocumentNumber());
         assertThat(sut.getLast().getPhoneNumber()).isEqualTo(BRASILEIRA.getPhoneNumber());
-        assertThat(sut.getLast().getExpirationDate()).isEqualTo(mapper.toStringDate(BRASILEIRA.getExpirationDate()));
-        assertThat(sut.getLast().getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(BRASILEIRA.getUpdatedDate()));
+        assertThat(sut.getLast().getExpirationDate()).isEqualTo(customerMapper.toStringDate(BRASILEIRA.getExpirationDate()));
+        assertThat(sut.getLast().getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(BRASILEIRA.getUpdatedDate()));
 
-        verify(repository, times(1)).findAllCustomers();
+        verify(customerRepository, times(1)).findAllCustomers();
     }
 
     @Test
     public void listCustomers_ReturnsNoCustomers() {
-        given(repository.findAllCustomers()).willReturn(Collections.emptyList());
+        given(customerRepository.findAllCustomers()).willReturn(Collections.emptyList());
 
         List<CustomerDTO> sut = service.findAllCustomers();
 
@@ -223,8 +229,8 @@ public class CustomerServiceTest {
     @Test
     public void disableCustomer_ByExistingCompanyName_ReturnsCustomer() {
 
-        given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
-        given(repository.update(any(Customer.class))).willReturn(DISABLE_CUSTOMER_ID);
+        given(customerRepository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
+        given(customerRepository.update(any(CustomerEntity.class))).willReturn(DISABLE_CUSTOMER_ID);
 
         //System under test
         CustomerDTO sut = service.disableCustomer(CUSTOMER_ID.getCompanyDocumentNumber());
@@ -235,29 +241,32 @@ public class CustomerServiceTest {
         assertThat(sut.getPhoneNumber()).isEqualTo(DISABLE_CUSTOMER_ID.getPhoneNumber());
         assertFalse(sut.getActive());
         assertFalse(sut.getUpdatedDate().isEmpty());
-        assertThat(sut.getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(DISABLE_CUSTOMER_ID.getUpdatedDate()));
+        assertThat(sut.getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(DISABLE_CUSTOMER_ID.getUpdatedDate()));
 
-        // Confirma que o Customer enviado ao update já foi marcado como inativo antes de persistir,
-        // e que os demais dados do cliente original foram preservados (optionalToDisableCustomer
-        // não deve alterar companyName/phoneNumber, só active e updatedDate).
-        ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(repository, times(1)).update(captor.capture());
-        Customer sentToUpdate = captor.getValue();
+        ArgumentCaptor<CustomerEntity> captor = ArgumentCaptor.forClass(CustomerEntity.class);
+        verify(customerRepository, times(1)).update(captor.capture());
+        CustomerEntity sentToUpdate = captor.getValue();
         assertFalse(sentToUpdate.getActive());
+        assertThat(sentToUpdate.getId()).isEqualTo(CUSTOMER_ID.getId());
         assertThat(sentToUpdate.getCompanyName()).isEqualTo(CUSTOMER_ID.getCompanyName());
+        assertThat(sentToUpdate.getCompanyDocumentNumber()).isEqualTo(CUSTOMER_ID.getCompanyDocumentNumber());
         assertThat(sentToUpdate.getPhoneNumber()).isEqualTo(CUSTOMER_ID.getPhoneNumber());
+        assertThat(sentToUpdate.getCreateDate()).isEqualTo(CUSTOMER_ID.getCreateDate());
+        assertThat(sentToUpdate.getExpirationDate()).isEqualTo(CUSTOMER_ID.getExpirationDate());
+        assertThat(LocalDateTime.parse(sentToUpdate.getUpdatedDate()))
+                .isCloseTo(LocalDateTime.now(), new TemporalUnitWithinOffset(5, ChronoUnit.SECONDS));
 
     }
 
     @Test
     public void disableCustomer_ByUnExistingCompanyDocumentNumber_ReturnsEmpty() {
 
-        given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of());
+        given(customerRepository.findByCompanyDocumentNumber(anyString())).willReturn(List.of());
 
         assertThatThrownBy(() -> service.disableCustomer(CUSTOMER_DTO.getCompanyDocumentNumber()))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(repository, never()).update(any(Customer.class));
+        verify(customerRepository, never()).update(any(CustomerEntity.class));
     }
 
     @Test
@@ -265,19 +274,16 @@ public class CustomerServiceTest {
 
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> service.disableCustomer(UNKNOWN_DOCUMENT_NUMBER));
 
-        String expectedMessage = CUSTOMER_IS_NOT_EXISTS;
-        String actualMessage = exception.getMessage();
+        assertThat(exception.getMessage()).contains(CUSTOMER_IS_NOT_EXISTS);
 
-        assertTrue(actualMessage.contains(expectedMessage));
-
-        verify(repository, never()).update(any(Customer.class));
+        verify(customerRepository, never()).update(any(CustomerEntity.class));
     }
 
     @Test
     public void updateCustomer_ByExistingCompanyName_ReturnsUpdatedCustomer() {
 
-        given(repository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
-        given(repository.update(any(Customer.class))).willReturn(AMERICANA);
+        given(customerRepository.findByCompanyDocumentNumber(anyString())).willReturn(List.of(CUSTOMER_ID));
+        given(customerRepository.update(any(CustomerEntity.class))).willReturn(AMERICANA);
 
         CustomerDTO sut = service.updateCustomer(CUSTOMER_DTO);
 
@@ -286,19 +292,23 @@ public class CustomerServiceTest {
         assertThat(sut.getCompanyDocumentNumber()).isEqualTo(AMERICANA.getCompanyDocumentNumber());
         assertThat(sut.getPhoneNumber()).isEqualTo(AMERICANA.getPhoneNumber());
         assertThat(sut.getActive()).isEqualTo(AMERICANA.getActive());
-        assertThat(sut.getExpirationDate()).isEqualTo(mapper.toStringDate(AMERICANA.getExpirationDate()));
-        assertThat(sut.getUpdatedDate()).isEqualTo(mapper.toStringLocalDateTime(AMERICANA.getUpdatedDate()));
+        assertThat(sut.getExpirationDate()).isEqualTo(customerMapper.toStringDate(AMERICANA.getExpirationDate()));
+        assertThat(sut.getUpdatedDate()).isEqualTo(customerMapper.toStringLocalDateTime(AMERICANA.getUpdatedDate()));
 
         // Garante que o objeto realmente enviado ao update() reflete os dados do DTO recebido
         // (companyName/phoneNumber), não os do customer antigo.
-        ArgumentCaptor<Customer> captor = ArgumentCaptor.forClass(Customer.class);
-        verify(repository, times(1)).update(captor.capture());
-        Customer sentToUpdate = captor.getValue();
+        ArgumentCaptor<CustomerEntity> captor = ArgumentCaptor.forClass(CustomerEntity.class);
+        verify(customerRepository, times(1)).update(captor.capture());
+        CustomerEntity sentToUpdate = captor.getValue();
         assertThat(sentToUpdate.getId()).isEqualTo(CUSTOMER_ID.getId());
         assertThat(sentToUpdate.getCompanyName()).isEqualTo(CUSTOMER_DTO.getCompanyName());
         assertThat(sentToUpdate.getPhoneNumber()).isEqualTo(CUSTOMER_DTO.getPhoneNumber());
         assertThat(sentToUpdate.getCompanyDocumentNumber()).isEqualTo(CUSTOMER_ID.getCompanyDocumentNumber());
+        assertThat(sentToUpdate.getCreateDate()).isEqualTo(CUSTOMER_ID.getCreateDate());
+        assertThat(sentToUpdate.getExpirationDate()).isEqualTo(CUSTOMER_ID.getExpirationDate());
         assertTrue(sentToUpdate.getActive());
+        assertThat(LocalDateTime.parse(sentToUpdate.getUpdatedDate()))
+                .isCloseTo(LocalDateTime.now(), new TemporalUnitWithinOffset(5, ChronoUnit.SECONDS));
 
     }
 
@@ -307,12 +317,9 @@ public class CustomerServiceTest {
 
         Exception exception = assertThrows(ResourceNotFoundException.class, () -> service.updateCustomer(CUSTOMER_DTO));
 
-        String expectedMessage = CUSTOMER_IS_NOT_EXISTS;
-        String actualMessage = exception.getMessage();
+        assertThat(exception.getMessage()).contains(CUSTOMER_IS_NOT_EXISTS);
 
-        assertTrue(actualMessage.contains(expectedMessage));
-
-        verify(repository, never()).update(any(Customer.class));
+        verify(customerRepository, never()).update(any(CustomerEntity.class));
     }
 
 }

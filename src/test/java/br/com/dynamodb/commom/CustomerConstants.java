@@ -1,14 +1,14 @@
 package br.com.dynamodb.commom;
 
 import br.com.dynamodb.dto.CustomerDTO;
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.entity.CustomerEntity;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class CustomerConstants {
 
-    public static final Customer CREATED_CUSTOMER_ID = new Customer(
+    public static final CustomerEntity CREATED_CUSTOMER_ID = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb95",
             "Empresa Portuguesa LTDA",
             "6598752300011",
@@ -19,7 +19,7 @@ public class CustomerConstants {
             true
     );
 
-    public static final Customer CUSTOMER_ID = new Customer(
+    public static final CustomerEntity CUSTOMER_ID = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb95",
             "Empresa Portuguesa LTDA",
             "6598752300011",
@@ -30,7 +30,7 @@ public class CustomerConstants {
             true
     );
 
-    public static final Customer DISABLE_CUSTOMER_ID = new Customer(
+    public static final CustomerEntity DISABLE_CUSTOMER_ID = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb95",
             "Empresa Portuguesa LTDA",
             "6598752300011",
@@ -47,13 +47,7 @@ public class CustomerConstants {
             "11-44444-55511"
     );
 
-    public static final CustomerDTO INVALID_COSTUMER_DTO = new CustomerDTO(
-            "",
-            "",
-            ""
-    );
-
-    public static final Customer AMERICANA = new Customer(
+    public static final CustomerEntity AMERICANA = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb96",
             "Empresa Americana LTDA",
             "6598752300012",
@@ -64,7 +58,7 @@ public class CustomerConstants {
             true
     );
 
-    public static final Customer CHINESA = new Customer(
+    public static final CustomerEntity CHINESA = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb97",
             "Empresa Chinesa LTDA",
             "6598752300013",
@@ -75,7 +69,7 @@ public class CustomerConstants {
             true
     );
 
-    public static final Customer BRASILEIRA = new Customer(
+    public static final CustomerEntity BRASILEIRA = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb98",
             "Empresa Brasileira LTDA",
             "6598752300014",
@@ -86,7 +80,7 @@ public class CustomerConstants {
             true
     );
 
-    public static final Customer CANADENSE = new Customer(
+    public static final CustomerEntity CANADENSE = new CustomerEntity(
             "c630b6d5-8650-4bcb-89a2-61e0500fcb99",
             "Empresa Canadense LTDA",
             "6598752300015",
@@ -99,7 +93,7 @@ public class CustomerConstants {
 
 
 
-    public static final List<Customer> CUSTOMERS = new ArrayList<>() {
+    public static final List<CustomerEntity> CUSTOMERS = new ArrayList<>() {
         {
             add(AMERICANA);
             add(CHINESA);

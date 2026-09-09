@@ -6,8 +6,6 @@ public final class Constants {
 
     public static final int TIMEZONE = -3;
 
-    public static final int PLUS_MONTH = 3;
-
     public static final String TIMEZONE_RECIFE = "America/Recife";
 
     public static final String GSI_COMPANY_NAME = "xCompanyName";

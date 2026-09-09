@@ -1,94 +1,120 @@
 package br.com.dynamodb.service;
 
+import br.com.dynamodb.config.Constants;
 import br.com.dynamodb.dto.CustomerDTO;
+import br.com.dynamodb.entity.CustomerEntity;
 import br.com.dynamodb.exceptions.BusinessException;
 import br.com.dynamodb.exceptions.ResourceNotFoundException;
-import br.com.dynamodb.mapper.Mapper;
+import br.com.dynamodb.mapper.CustomerMapper;
 import br.com.dynamodb.repository.CustomerRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class CustomerService {
 
-    private final CustomerRepository repository;
-
-    private final Mapper mapper;
-
-    public CustomerService(CustomerRepository repository, Mapper mapper) {
-        this.repository = repository;
-        this.mapper = mapper;
-    }
-
     private static final String CUSTOMER_IS_ALREADY = "There is already a customer with this document number";
     private static final String CUSTOMER_IS_NOT_EXISTS = "There is not customer with this document number";
 
-    public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
-        var recoveryListCustomer =
-                repository.findByCompanyDocumentNumber(customerDTO.getCompanyDocumentNumber());
+    /** Meses até o cliente expirar (TTL). Regra de negócio do Customer. */
+    private static final int EXPIRATION_MONTHS = 3;
 
-        if (!recoveryListCustomer.isEmpty()) {
+    private final CustomerRepository customerRepository;
+    private final CustomerMapper customerMapper;
+
+    public CustomerService(CustomerRepository customerRepository, CustomerMapper customerMapper) {
+        this.customerRepository = customerRepository;
+        this.customerMapper = customerMapper;
+    }
+
+    public CustomerDTO saveCustomer(CustomerDTO customerDTO) {
+        boolean alreadyExists = !customerRepository
+                .findByCompanyDocumentNumber(customerDTO.getCompanyDocumentNumber())
+                .isEmpty();
+
+        if (alreadyExists) {
             throw new BusinessException(CUSTOMER_IS_ALREADY);
         }
 
-        return mapper
-                .toCustomerDTO(
-                        repository.save(
-                                mapper.toCreateCustomer(customerDTO)
-                        ));
+        String createDate = LocalDateTime.now().toString();
+
+        CustomerEntity toCreate = CustomerEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .companyName(customerDTO.getCompanyName())
+                .companyDocumentNumber(customerDTO.getCompanyDocumentNumber())
+                .phoneNumber(customerDTO.getPhoneNumber())
+                .createDate(createDate)
+                .expirationDate(toExpirationEpoch(createDate))
+                .active(true)
+                .build();
+
+        return customerMapper.toCustomerDTO(customerRepository.save(toCreate));
     }
 
     public List<CustomerDTO> findAllCustomers() {
-        return mapper.toCustomerDTOList(repository.findAllCustomers());
+        return customerMapper.toCustomerDTOList(customerRepository.findAllCustomers());
     }
 
     public List<CustomerDTO> findByCompanyName(String companyName) {
-        return mapper.toCustomerDTOList(repository.findByCompanyName(companyName));
+        return customerMapper.toCustomerDTOList(customerRepository.findByCompanyName(companyName));
     }
 
     public CustomerDTO findCompanyNameByQuery(String companyName) {
-        var recoveredCustomer = repository.findCompanyNameByQuery(companyName);
-
-        if (recoveredCustomer.isEmpty()) {
-            throw new ResourceNotFoundException(CUSTOMER_IS_NOT_EXISTS);
-        }
-
-        return mapper
-                .toCustomerDTO(mapper
-                        .optionalToCustomer(repository
-                                .findCompanyNameByQuery(companyName)));
+        return customerRepository.findCompanyNameByQuery(companyName)
+                .map(customerMapper::toCustomerDTO)
+                .orElseThrow(() -> new ResourceNotFoundException(CUSTOMER_IS_NOT_EXISTS));
     }
 
     public CustomerDTO updateCustomer(CustomerDTO customerDTO) {
-        var recoveryListCustomer =
-                repository.findByCompanyDocumentNumber(customerDTO.getCompanyDocumentNumber());
+        CustomerEntity current = findByDocumentOrThrow(customerDTO.getCompanyDocumentNumber());
 
-        if (recoveryListCustomer.isEmpty()) {
-            throw new ResourceNotFoundException(CUSTOMER_IS_NOT_EXISTS);
-        }
+        CustomerEntity toUpdate = CustomerEntity.builder()
+                .id(current.getId())
+                .companyName(customerDTO.getCompanyName())
+                .companyDocumentNumber(current.getCompanyDocumentNumber())
+                .phoneNumber(customerDTO.getPhoneNumber())
+                .createDate(current.getCreateDate())
+                .expirationDate(current.getExpirationDate())
+                .updatedDate(LocalDateTime.now().toString())
+                .active(true)
+                .build();
 
-        var recoveryCustomer = recoveryListCustomer.stream().toList().getFirst();
-
-        return mapper.toCustomerDTO(
-                repository.update(
-                        mapper.optionalToUpdateCustomer(recoveryCustomer, customerDTO)));
+        return customerMapper.toCustomerDTO(customerRepository.update(toUpdate));
     }
 
     public CustomerDTO disableCustomer(String companyDocumentNumber) {
-        var recoveryListCustomer =
-                repository.findByCompanyDocumentNumber(companyDocumentNumber);
+        CustomerEntity current = findByDocumentOrThrow(companyDocumentNumber);
 
-        if (recoveryListCustomer.isEmpty()) {
-            throw new ResourceNotFoundException(CUSTOMER_IS_NOT_EXISTS);
-        }
+        CustomerEntity toDisable = CustomerEntity.builder()
+                .id(current.getId())
+                .companyName(current.getCompanyName())
+                .companyDocumentNumber(current.getCompanyDocumentNumber())
+                .phoneNumber(current.getPhoneNumber())
+                .createDate(current.getCreateDate())
+                .expirationDate(current.getExpirationDate())
+                .updatedDate(LocalDateTime.now().toString())
+                .active(false)
+                .build();
 
-        var recoveryCustomer = recoveryListCustomer.stream().toList().getFirst();
-
-        return mapper.toCustomerDTO(
-                repository.update(
-                        mapper.optionalToDisableCustomer(recoveryCustomer)
-                ));
+        return customerMapper.toCustomerDTO(customerRepository.update(toDisable));
     }
 
+    private CustomerEntity findByDocumentOrThrow(String companyDocumentNumber) {
+        List<CustomerEntity> found = customerRepository.findByCompanyDocumentNumber(companyDocumentNumber);
+        if (found.isEmpty()) {
+            throw new ResourceNotFoundException(CUSTOMER_IS_NOT_EXISTS);
+        }
+        return found.getFirst();
+    }
+
+    /** createDate (ISO) + EXPIRATION_MONTHS meses, em epoch seconds (fuso {@link Constants#TIMEZONE}). */
+    private long toExpirationEpoch(String createDate) {
+        return LocalDateTime.parse(createDate)
+                .plusMonths(EXPIRATION_MONTHS)
+                .toEpochSecond(ZoneOffset.ofHours(Constants.TIMEZONE));
+    }
 }

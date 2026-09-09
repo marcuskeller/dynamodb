@@ -1,6 +1,6 @@
 package br.com.dynamodb.config;
 
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.entity.CustomerEntity;
 import io.awspring.cloud.dynamodb.DynamoDbTableNameResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +53,7 @@ class DynamoDBConfigurationTest {
     void dynamoDbTableNameResolver_deveRetornarCustomersParaClasseCustomer() {
         DynamoDbTableNameResolver resolver = configuration.dynamoDbTableNameResolver();
 
-        String tableName = resolver.resolve(Customer.class);
+        String tableName = resolver.resolve(CustomerEntity.class);
 
         assertThat(tableName).isEqualTo("customers");
     }
@@ -68,16 +68,16 @@ class DynamoDBConfigurationTest {
     }
 
     @Test
-    void dynamoDbTableNameResolver_naoDeveConfundirClasseComNomeParecidoComCustomer() {
-        // Garante que a comparação é por Class.equals (identidade de tipo),
-        // não por nome — mata mutantes que trocassem equals por comparação de String.
-        class Customer {
+    void dynamoDbTableNameResolver_naoDeveConfundirOutraClasseComMesmoNomeSimples() {
+        // Garante que a resolução é por identidade de Class (chave do Map),
+        // não por nome — outra classe chamada "CustomerEntity" cai no fallback.
+        class CustomerEntity {
         }
 
         DynamoDbTableNameResolver resolver = configuration.dynamoDbTableNameResolver();
 
-        String tableName = resolver.resolve(Customer.class);
+        String tableName = resolver.resolve(CustomerEntity.class);
 
-        assertThat(tableName).isEqualTo("customer");
+        assertThat(tableName).isEqualTo("customerentity");
     }
 }

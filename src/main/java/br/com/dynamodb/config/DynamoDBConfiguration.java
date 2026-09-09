@@ -1,7 +1,8 @@
 package br.com.dynamodb.config;
 
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.entity.CustomerEntity;
 import io.awspring.cloud.dynamodb.DynamoDbTableNameResolver;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +15,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import java.net.URI;
 import java.util.Map;
 
+@NullMarked
 @Configuration
 public class DynamoDBConfiguration {
 
@@ -49,7 +51,7 @@ public class DynamoDBConfiguration {
 
     // Nome de tabela por entidade. Entidade nova = 1 linha aqui, sem tocar no resolve() abaixo.
     private static final Map<Class<?>, String> TABLE_NAMES = Map.of(
-            Customer.class, "customers"
+            CustomerEntity.class, "customers"
     );
 
     @Bean

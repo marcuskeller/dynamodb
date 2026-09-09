@@ -106,7 +106,7 @@ sequenceDiagram
     participant C as Cliente<br/>(Insomnia/Postman)
     participant CT as CustomerController
     participant S as CustomerService
-    participant M as Mapper
+    participant M as CustomerMapper
     participant R as CustomerRepository
     participant T as DynamoDbTemplate<br/>(AWS SDK v2)
     participant DB as DynamoDB<br/>(Floci / AWS)
@@ -117,9 +117,9 @@ sequenceDiagram
     R->>T: ScanEnhancedRequest / QueryEnhancedRequest
     T->>DB: chamada AWS SDK
     DB-->>T: itens
-    T-->>R: PageIterable<Customer>
-    R-->>S: List<Customer> / Optional<Customer>
-    S->>M: Customer <-> CustomerDTO
+    T-->>R: PageIterable<CustomerEntity>
+    R-->>S: List<CustomerEntity> / Optional<CustomerEntity>
+    S->>M: CustomerEntity -> CustomerDTO
     S-->>CT: CustomerDTO
     CT-->>C: HTTP Response (JSON)
 ```
@@ -129,13 +129,13 @@ Camadas:
 | Camada | Classe | Responsabilidade |
 |---|---|---|
 | Controller | `controller/CustomerController` | expõe os endpoints REST, valida a entrada |
-| Service | `service/CustomerService` | regra de negócio (duplicidade, existência) |
-| Mapper | `mapper/Mapper` | converte `CustomerDTO` ↔ `Customer` e formata datas / calcula o TTL |
+| Service | `service/CustomerService` | regra de negócio: duplicidade, existência, criação da entidade (id, datas, TTL), transições de estado (update / disable) |
+| Mapper | `mapper/CustomerMapper` | só tradução `CustomerEntity` → `CustomerDTO` + formatação de datas de saída |
 | Repository | `repository/CustomerRepository` | único ponto de acesso ao `DynamoDbTemplate`: `scan` / `query` / `save` / `update` |
-| Model | `model/Customer` | entidade `@DynamoDbBean` (mapeia a tabela `customers`) |
+| Entity | `entity/CustomerEntity` | dados puros `@DynamoDbBean` (mapeia a tabela `customers`) |
 | DTO | `dto/CustomerDTO` | contrato JSON de entrada/saída da API |
 | Exceptions | `exceptions/*` | `GlobalExceptionHandler` (`@RestControllerAdvice`) traduz `ResourceNotFoundException`/`BusinessException` em respostas HTTP (404 / 422 / 500) |
-| Config | `config/DynamoDBConfiguration`, `config/Constants` | beans de conexão e constantes (fuso, +3 meses, formatador de data) |
+| Config | `config/DynamoDBConfiguration`, `config/Constants` | beans de conexão e constantes transversais (fuso, formatador de data) |
 
 ## 🗂 Estrutura de Pastas
 
@@ -149,9 +149,8 @@ dynamodb/
 │   └── putCustomers.json         # carga inicial (3 clientes)
 ├── src/main/java/br/com/dynamodb/
 │   ├── DynamoDbApplication.java
-│   ├── config/        · controller/   · dto/
-│   ├── exceptions/    · mapper/       · model/
-│   ├── repository/    · service/
+│   ├── config/        · controller/   · dto/       · entity/
+│   ├── exceptions/    · mapper/       · repository/ · service/
 ├── src/main/resources/application.properties
 ├── src/test/java/br/com/dynamodb/    # JUnit 5 + Mockito
 └── .github/workflows/pipeline.yml    # CI/CD
@@ -184,7 +183,7 @@ sobre `company_name`. Definição em [`files/database/customerTable.json`](files
 }
 ```
 
-Atributos do item (nomes no banco em `snake_case`, ver `model/Customer.java`):
+Atributos do item (nomes no banco em `snake_case`, ver `entity/CustomerEntity.java`):
 
 | Atributo (DynamoDB) | Tipo | Campo Java | Observação |
 |---|---|---|---|
@@ -194,7 +193,7 @@ Atributos do item (nomes no banco em `snake_case`, ver `model/Customer.java`):
 | `phone_number` | S | `phoneNumber` | |
 | `create_date` | S | `createDate` | ISO no banco (`LocalDateTime.toString()`); no JSON de resposta sai como `dd/MM/yyyy HH:mm:ss` |
 | `updated_date` | S | `updatedDate` | preenchido em update/disable |
-| `expiration_date` | N | `expirationDate` | **TTL** — epoch em segundos = `createDate` + 3 meses (`Constants.PLUS_MONTH`); no JSON sai formatado como data |
+| `expiration_date` | N | `expirationDate` | **TTL** — epoch em segundos = `createDate` + 3 meses (`CustomerService.EXPIRATION_MONTHS`); no JSON sai formatado como data |
 | `active` | BOOL | `active` | `false` após `disableCustomer` |
 
 O TTL sobre `expiration_date` é habilitado automaticamente pelo script de init.
@@ -276,7 +275,7 @@ Definido em `src/main/resources/application.properties` (valores default para am
 | `aws.profile` | `localstack` | nome do profile de credenciais (herdado do LocalStack; hoje aponta para o Floci) |
 | `spring.profiles.active` | `localstack` | profile Spring ativo (mesma observação acima) |
 
-> **Nome da tabela por entidade** (`Customer` → `customers`) não vem de property — o Spring Cloud AWS
+> **Nome da tabela por entidade** (`CustomerEntity` → `customers`) não vem de property — o Spring Cloud AWS
 > 3.x não tem `table-name-overrides` (isso não existe; só `table-prefix`/`table-suffix`). É definido em
 > código: bean `DynamoDbTableNameResolver` em `DynamoDBConfiguration.java`, orientado a um `Map<Class<?>, String>`
 > (adicionar entidade nova = 1 linha no mapa, sem editar lógica).
@@ -357,7 +356,7 @@ Dependência (em `pom.xml`):
 
 ## 🧪 Testes
 
-- **JUnit 5** + **Mockito** — testes unitários das camadas (controller, service, mapper, repository, exceptions, config). São os 13 arquivos `*Test.java` (77 testes).
+- **JUnit 5** + **Mockito** — testes unitários das camadas (controller, service, mapper, repository, exceptions, entity, config), nos arquivos `*Test.java`.
 - **JaCoCo** — relatório de cobertura em `target/site/jacoco/` (enviado ao Codecov no CI).
 - **Pitest / Stryker** — mutation testing (garante que os testes realmente falham quando o código muda).
 

@@ -1,4 +1,4 @@
-package br.com.dynamodb.model;
+package br.com.dynamodb.entity;
 
 import org.junit.jupiter.api.Test;
 
@@ -6,12 +6,12 @@ import java.io.Serializable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class CustomerTest {
+public class CustomerEntityTest {
 
 
     @Test
     void deveCriarComConstrutorVazioESetarTodosOsCamposIndividualmente() {
-        Customer customer = new Customer();
+        CustomerEntity customer = new CustomerEntity();
 
         customer.setId("id-1");
         customer.setCompanyName("Empresa Teste");
@@ -34,7 +34,7 @@ public class CustomerTest {
 
     @Test
     void deveAceitarValoresNulosNosCamposOpcionais() {
-        Customer customer = new Customer();
+        CustomerEntity customer = new CustomerEntity();
 
         customer.setId("id-2");
         customer.setUpdatedDate(null);
@@ -52,7 +52,7 @@ public class CustomerTest {
 
     @Test
     void deveCriarComConstrutorComTodosOsArgumentos() {
-        Customer customer = new Customer(
+        CustomerEntity customer = new CustomerEntity(
                 "id-3",
                 "Empresa AllArgs",
                 "doc-allargs",
@@ -79,7 +79,7 @@ public class CustomerTest {
 
     @Test
     void deveCriarComBuilderPreenchendoTodosOsCampos() {
-        Customer customer = Customer.builder()
+        CustomerEntity customer = CustomerEntity.builder()
                 .id("id-4")
                 .companyName("Empresa Builder")
                 .companyDocumentNumber("doc-builder")
@@ -102,7 +102,7 @@ public class CustomerTest {
 
     @Test
     void builderDeveAceitarCamposOpcionaisNaoInformados() {
-        Customer customer = Customer.builder()
+        CustomerEntity customer = CustomerEntity.builder()
                 .id("id-5")
                 .companyName("Empresa Sem Update")
                 .build();
@@ -119,7 +119,7 @@ public class CustomerTest {
 
     @Test
     void deveImplementarSerializable() {
-        Customer customer = new Customer();
+        CustomerEntity customer = new CustomerEntity();
 
         assertThat(customer).isInstanceOf(Serializable.class);
     }

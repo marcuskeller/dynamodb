@@ -1,7 +1,7 @@
 package br.com.dynamodb.repository;
 
 import br.com.dynamodb.config.Constants;
-import br.com.dynamodb.model.Customer;
+import br.com.dynamodb.entity.CustomerEntity;
 import io.awspring.cloud.dynamodb.DynamoDbTemplate;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.Expression;
@@ -26,7 +26,7 @@ public class CustomerRepository {
         this.dynamoDbTemplate = dynamoDbTemplate;
     }
 
-    public List<Customer> findByCompanyDocumentNumber(String companyDocumentNumber) {
+    public List<CustomerEntity> findByCompanyDocumentNumber(String companyDocumentNumber) {
         Map<String, AttributeValue> expressionValues = new HashMap<>();
         expressionValues.put(":company_document_number", AttributeValue.fromS(companyDocumentNumber));
 
@@ -37,8 +37,8 @@ public class CustomerRepository {
 
         ScanEnhancedRequest scanEnhancedRequest = ScanEnhancedRequest.builder()
                 .filterExpression(filterExpression).build();
-        PageIterable<Customer> customers = dynamoDbTemplate.scan(scanEnhancedRequest,
-                Customer.class);
+        PageIterable<CustomerEntity> customers = dynamoDbTemplate.scan(scanEnhancedRequest,
+                CustomerEntity.class);
 
         return customers
                 .stream()
@@ -47,7 +47,7 @@ public class CustomerRepository {
                 .items();
     }
 
-    public List<Customer> findByCompanyName(String companyName) {
+    public List<CustomerEntity> findByCompanyName(String companyName) {
         Map<String, AttributeValue> expressionValues = new HashMap<>();
         expressionValues.put(":company_name", AttributeValue.fromS(companyName));
 
@@ -58,8 +58,8 @@ public class CustomerRepository {
 
         ScanEnhancedRequest scanEnhancedRequest = ScanEnhancedRequest.builder()
                 .filterExpression(filterExpression).build();
-        PageIterable<Customer> customers = dynamoDbTemplate.scan(scanEnhancedRequest,
-                Customer.class);
+        PageIterable<CustomerEntity> customers = dynamoDbTemplate.scan(scanEnhancedRequest,
+                CustomerEntity.class);
 
         return customers
                 .items()
@@ -67,14 +67,14 @@ public class CustomerRepository {
                 .toList();
     }
 
-    public Optional<Customer> findCompanyNameByQuery(String companyName) {
+    public Optional<CustomerEntity> findCompanyNameByQuery(String companyName) {
 
         var key = Key.builder().partitionValue(companyName).build();
         var queryEnhancedRequest = QueryEnhancedRequest.builder()
                 .queryConditional(QueryConditional.keyEqualTo(key)).build();
 
-        PageIterable<Customer> customers = dynamoDbTemplate.query(queryEnhancedRequest,
-                Customer.class, Constants.GSI_COMPANY_NAME);
+        PageIterable<CustomerEntity> customers = dynamoDbTemplate.query(queryEnhancedRequest,
+                CustomerEntity.class, Constants.GSI_COMPANY_NAME);
 
         return customers
                 .items()
@@ -82,8 +82,8 @@ public class CustomerRepository {
                 .findFirst();
     }
 
-    public List<Customer> findAllCustomers() {
-        var customers = dynamoDbTemplate.scanAll(Customer.class);
+    public List<CustomerEntity> findAllCustomers() {
+        var customers = dynamoDbTemplate.scanAll(CustomerEntity.class);
 
         return customers
                 .items()
@@ -92,11 +92,11 @@ public class CustomerRepository {
 
     }
 
-    public Customer save(Customer customer) {
+    public CustomerEntity save(CustomerEntity customer) {
         return dynamoDbTemplate.save(customer);
     }
 
-    public Customer update(Customer customer) {
+    public CustomerEntity update(CustomerEntity customer) {
         return dynamoDbTemplate.update(customer);
     }
 

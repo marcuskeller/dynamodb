@@ -1,4 +1,4 @@
-package br.com.dynamodb.model;
+package br.com.dynamodb.entity;
 
 import br.com.dynamodb.config.Constants;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,7 +19,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 @DynamoDbBean
-public class Customer implements Serializable {
+public class CustomerEntity implements Serializable {
 
     @Serial
     private static final long serialVersionUID = -4282005207341771716L;

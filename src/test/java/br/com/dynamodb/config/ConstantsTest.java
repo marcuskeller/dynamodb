@@ -33,11 +33,6 @@ public class ConstantsTest {
     }
 
     @Test
-    void plusMonthDeveSerTres() {
-        assertThat(Constants.PLUS_MONTH).isEqualTo(3);
-    }
-
-    @Test
     void timezoneRecifeDeveSerAmericaRecife() {
         assertThat(Constants.TIMEZONE_RECIFE).isEqualTo("America/Recife");
     }
