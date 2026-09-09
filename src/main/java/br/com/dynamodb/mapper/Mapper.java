@@ -2,6 +2,7 @@ package br.com.dynamodb.mapper;
 
 import br.com.dynamodb.dto.CustomerDTO;
 import br.com.dynamodb.model.Customer;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import java.util.UUID;
 import static br.com.dynamodb.config.Constants.*;
 
 
+@Component
 public class Mapper {
     public Long toEpocDate(String date) {
         return LocalDateTime
@@ -68,25 +70,27 @@ public class Mapper {
     }
 
     public Customer optionalToCustomer(Optional<Customer> optCostumer) {
+        // .get() propositalmente sem isPresent(): Optional vazio deve lançar
+        // NoSuchElementException aqui (comportamento coberto em MapperTest).
+        Customer customer = optCostumer.get();
+
         return Customer.builder()
-                .id(optCostumer.get().getId())
-                .companyName(optCostumer.get().getCompanyName())
-                .companyDocumentNumber(optCostumer.get().getCompanyDocumentNumber())
-                .companyName(optCostumer.get().getCompanyName())
-                .phoneNumber(optCostumer.get().getPhoneNumber())
-                .createDate(optCostumer.get().getCreateDate())
-                .expirationDate(optCostumer.get().getExpirationDate())
-                .updatedDate(optCostumer.get().getUpdatedDate())
-                .active(optCostumer.get().getActive())
+                .id(customer.getId())
+                .companyName(customer.getCompanyName())
+                .companyDocumentNumber(customer.getCompanyDocumentNumber())
+                .phoneNumber(customer.getPhoneNumber())
+                .createDate(customer.getCreateDate())
+                .expirationDate(customer.getExpirationDate())
+                .updatedDate(customer.getUpdatedDate())
+                .active(customer.getActive())
                 .build();
     }
 
     public Customer optionalToUpdateCustomer(Customer customer, CustomerDTO customerDTO) {
         return Customer.builder()
                 .id(customer.getId())
-                .companyName(customer.getCompanyName())
-                .companyDocumentNumber(customer.getCompanyDocumentNumber())
                 .companyName(customerDTO.getCompanyName())
+                .companyDocumentNumber(customer.getCompanyDocumentNumber())
                 .phoneNumber(customerDTO.getPhoneNumber())
                 .createDate(customer.getCreateDate())
                 .expirationDate(customer.getExpirationDate())
@@ -100,7 +104,6 @@ public class Mapper {
                 .id(customer.getId())
                 .companyName(customer.getCompanyName())
                 .companyDocumentNumber(customer.getCompanyDocumentNumber())
-                .companyName(customer.getCompanyName())
                 .phoneNumber(customer.getPhoneNumber())
                 .createDate(customer.getCreateDate())
                 .expirationDate(customer.getExpirationDate())

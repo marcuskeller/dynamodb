@@ -12,6 +12,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 import java.net.URI;
+import java.util.Map;
 
 @Configuration
 public class DynamoDBConfiguration {
@@ -46,15 +47,17 @@ public class DynamoDBConfiguration {
                 .build();
     }
 
+    // Nome de tabela por entidade. Entidade nova = 1 linha aqui, sem tocar no resolve() abaixo.
+    private static final Map<Class<?>, String> TABLE_NAMES = Map.of(
+            Customer.class, "customers"
+    );
+
     @Bean
     public DynamoDbTableNameResolver dynamoDbTableNameResolver() {
         return new DynamoDbTableNameResolver() {
             @Override
             public <T> String resolve(Class<T> clazz) {
-                if (clazz.equals(Customer.class)) {
-                    return "customers";
-                }
-                return clazz.getSimpleName().toLowerCase();
+                return TABLE_NAMES.getOrDefault(clazz, clazz.getSimpleName().toLowerCase());
             }
         };
     }
