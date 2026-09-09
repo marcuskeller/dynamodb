@@ -1,4 +1,4 @@
-package br.com.dynamodb.config;
+package br.com.dynamodb.infra.dynamo;
 
 import br.com.dynamodb.entity.CustomerEntity;
 import io.awspring.cloud.dynamodb.DynamoDbTableNameResolver;
